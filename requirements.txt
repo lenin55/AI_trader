@@ -1,0 +1,13 @@
+python-dotenv
+requests
+kiteconnect
+langchain-core
+langchain-xai
+langchain-openai
+langchain-google-genai
+pydantic
+streamlit
+schedule
+pytz
+colorlog
+pandas
