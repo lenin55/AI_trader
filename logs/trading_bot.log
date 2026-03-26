@@ -118,3 +118,76 @@
 2026-03-25 22:23:14,932 - SectorTrader - INFO - No trade taken today. Preserving capital.
 2026-03-25 22:27:30,041 - SectorTrader - INFO - Starting Daily Scheduler. Waiting for 9:00 AM (local time match)...
 2026-03-25 22:43:28,342 - SectorTrader - INFO - Scheduler manually stopped.
+2026-03-26 00:17:21,925 - SectorTrader - INFO - Starting Daily Scheduler. Waiting for 9:00 AM (local time match)...
+2026-03-26 00:17:31,195 - SectorTrader - INFO - Scheduler manually stopped.
+2026-03-26 00:17:50,726 - SectorTrader - INFO - Starting Daily Scheduler. Waiting for 9:00 AM (local time match)...
+2026-03-26 00:20:22,343 - SectorTrader - INFO - Scheduler manually stopped.
+2026-03-26 00:20:55,063 - SectorTrader - INFO - Starting Daily Scheduler. Waiting for 9:00 AM (local time match)...
+2026-03-26 09:36:38,044 - SectorTrader - INFO - Executing Scheduled Job...
+2026-03-26 09:36:38,155 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 09:36:38,160 - SectorTrader - CRITICAL - ANTHROPIC_API_KEY is missing or not set in .env file. Get your key from https://console.anthropic.com
+2026-03-26 09:36:38,162 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 09:36:38,162 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 09:36:38,163 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 09:36:39,179 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 09:36:39,285 - SectorTrader - INFO - News snapshot (10 articles) saved to DB for 2026-03-26.
+2026-03-26 09:36:39,310 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 09:36:39,310 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 09:36:39,310 - SectorTrader - INFO - No new trade taken today. Preserving capital.
+2026-03-26 09:36:39,323 - SectorTrader - INFO - Scheduled Job Completed.
+2026-03-26 10:56:01,102 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 10:56:01,103 - SectorTrader - CRITICAL - ANTHROPIC_API_KEY is missing or not set in .env file. Get your key from https://console.anthropic.com
+2026-03-26 10:56:01,103 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 10:56:01,103 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 10:56:01,103 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 10:56:02,011 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 10:56:02,056 - SectorTrader - INFO - News snapshot (10 articles) saved to DB for 2026-03-26.
+2026-03-26 10:56:02,064 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 10:56:02,064 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 10:56:02,064 - SectorTrader - INFO - No new trade taken today. Preserving capital.
+2026-03-26 11:41:09,645 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 11:41:09,649 - SectorTrader - CRITICAL - ANTHROPIC_API_KEY is missing or not set in .env file. Get your key from https://console.anthropic.com
+2026-03-26 11:41:09,649 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 11:41:09,649 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 11:41:09,649 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 11:41:10,604 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 11:41:10,637 - SectorTrader - INFO - News snapshot (10 articles) saved to DB for 2026-03-26.
+2026-03-26 11:41:10,706 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 11:41:10,706 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 11:41:10,706 - SectorTrader - INFO - No new trade taken today. Preserving capital.
+2026-03-26 12:22:05,833 - SectorTrader - INFO - Scheduler manually stopped.
+2026-03-26 12:22:11,147 - SectorTrader - INFO - Starting Daily Scheduler. Waiting for 9:00 AM (local time match)...
+2026-03-26 13:14:55,652 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 13:14:55,653 - SectorTrader - CRITICAL - ANTHROPIC_API_KEY is missing or not set in .env file. Get your key from https://console.anthropic.com
+2026-03-26 13:14:55,653 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 13:14:55,653 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 13:14:55,653 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 13:15:06,271 - SectorTrader - ERROR - Request to NewsData.io timed out.
+2026-03-26 13:15:06,351 - SectorTrader - INFO - News snapshot (0 articles) saved to DB for 2026-03-26.
+2026-03-26 13:15:06,365 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 13:15:06,366 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 13:15:06,366 - SectorTrader - INFO - No new trade taken today. Preserving capital.
+2026-03-26 15:38:48,328 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 15:38:49,317 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 15:39:03,540 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 15:39:03,541 - SectorTrader - CRITICAL - ANTHROPIC_API_KEY is missing or not set in .env file. Get your key from https://console.anthropic.com
+2026-03-26 15:39:03,541 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 15:39:03,542 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 15:39:03,542 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 15:39:04,410 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 15:39:04,570 - SectorTrader - INFO - News snapshot (10 articles) saved to DB for 2026-03-26.
+2026-03-26 15:39:04,648 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 15:39:04,648 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 15:39:04,752 - SectorTrader - INFO - No new trade taken today. Preserving capital.
+2026-03-26 15:48:44,516 - SectorTrader - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-03-26 15:48:50,997 - SectorTrader - INFO - Gemini AI client initialised.
+2026-03-26 15:48:50,997 - SectorTrader - INFO - === STARTING DAILY TRADING ROUTINE ===
+2026-03-26 15:48:50,997 - SectorTrader - WARNING - [SIMULATED API] Returning dummy funds (₹50000.0)
+2026-03-26 15:48:50,997 - SectorTrader - INFO - Fetching latest Indian business news from NewsData.io...
+2026-03-26 15:48:51,885 - SectorTrader - INFO - Successfully fetched and formatted 10 news articles.
+2026-03-26 15:48:52,333 - SectorTrader - INFO - News snapshot (10 articles) saved to DB for 2026-03-26.
+2026-03-26 15:48:52,399 - SectorTrader - INFO - No open positions to evaluate today.
+2026-03-26 15:48:52,399 - SectorTrader - INFO - Sending news to Gemini for sector analysis...
+2026-03-26 15:48:59,890 - SectorTrader - INFO - Gemini Decision: NO_TRADE | Stock: None
+2026-03-26 15:48:59,890 - SectorTrader - INFO - AI suggests NO_TRADE for None.
+2026-03-26 15:48:59,902 - SectorTrader - INFO - No new trade taken today. Preserving capital.

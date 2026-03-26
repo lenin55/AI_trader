@@ -1,13 +1,25 @@
+# Core trading & scheduling
 python-dotenv
 requests
 kiteconnect
-langchain-core
-langchain-xai
-langchain-openai
-langchain-google-genai
-pydantic
-streamlit
 schedule
 pytz
-colorlog
+
+# Database
+psycopg2-binary
+
+# AI — Claude (Anthropic)
+anthropic
+
+# Dashboard
+streamlit
 pandas
+plotly
+
+# AI Engine
+langchain-core
+langchain-google-genai
+pydantic
+
+# Logging
+colorlog
