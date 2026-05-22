@@ -13,6 +13,14 @@ from kite_client import KiteClient
 from news_fetcher import NewsFetcher
 from ai_decision import AIDecisionMaker
 from sell_logic import SellEngine
+from notifier import (
+    notify_buy,
+    notify_sell,
+    notify_circuit_breaker,
+    notify_no_trade,
+    notify_daily_summary,
+    notify_error,
+)
 from database import (
     initialize_database,
     insert_trade,
@@ -20,10 +28,22 @@ from database import (
     log_daily_decision,
     already_holds_stock,
     get_portfolio_summary,
+    get_today_realised_pnl,
 )
-from config import MAX_RISK_PER_TRADE, TOTAL_CAPITAL, logger
+from config import (
+    MAX_RISK_PER_TRADE,
+    TOTAL_CAPITAL,
+    MAX_SIMULATED_DAILY_LOSS,
+    STOP_LOSS_PCT,
+    logger
+)
 
-ASSUMED_SL_PERCENT = 0.05  # Used for quantity sizing (matches sell stop-loss threshold)
+try:
+    from technical_analysis import get_ta_context_for_universe
+    from config import LIQUID_UNIVERSE
+    _TA_AVAILABLE = True
+except ImportError:
+    _TA_AVAILABLE = False
 
 
 class SectorTrader:
@@ -45,7 +65,9 @@ class SectorTrader:
         # -------------------------------------------------------
         available_funds = self.kite.get_available_funds()
         if available_funds < 1000:
-            logger.critical(f"Insufficient funds: ₹{available_funds}")
+            msg = f"Insufficient funds: ₹{available_funds}"
+            logger.critical(msg)
+            notify_error("funds_check", msg)
             return {"status": "error", "message": "Insufficient funds."}
 
         # -------------------------------------------------------
@@ -59,6 +81,16 @@ class SectorTrader:
         log_daily_news(log_date=today, news_text=news_text, article_count=article_count)
         logger.info(f"News snapshot ({article_count} articles) saved to DB for {today}.")
 
+        # Compute sector sentiment for AI context
+        sentiment_context = self.news_fetcher.get_sector_sentiment(news_text)
+        logger.info("Sector sentiment computed.")
+
+        # Compute technical indicators for the full universe
+        ta_context = ""
+        if _TA_AVAILABLE:
+            logger.info("Fetching technical indicators for LIQUID_UNIVERSE...")
+            ta_context = get_ta_context_for_universe(LIQUID_UNIVERSE)
+
         # -------------------------------------------------------
         # 2. Run exit checks on ALL open positions FIRST
         # -------------------------------------------------------
@@ -70,107 +102,188 @@ class SectorTrader:
                     f"Reason: {event.get('exit_reason')} | "
                     f"P&L: ₹{event.get('pnl')}"
                 )
+                # Fire Telegram alert for each exit
+                notify_sell(
+                    stock=event.get("stock", "?"),
+                    quantity=event.get("quantity", 0),
+                    exit_price=event.get("exit_price", 0),
+                    pnl=event.get("pnl", 0),
+                    pnl_pct=event.get("pnl_pct", 0),
+                    exit_reason=event.get("exit_reason", "UNKNOWN"),
+                    trade_id=event.get("trade_id", 0),
+                )
 
         # -------------------------------------------------------
-        # 3. Get AI BUY decision for today
+        # 3. Daily loss circuit breaker
         # -------------------------------------------------------
-        decision = self.ai.get_decision(news_text)
-        action   = decision.get("action", "NO_TRADE")
-        stock    = decision.get("stock", "None")
-        reason   = decision.get("reason", "No reason.")
-        sector   = decision.get("sector", "None")
+        today_pnl = get_today_realised_pnl(today)
+        if today_pnl <= -MAX_SIMULATED_DAILY_LOSS:
+            logger.critical(
+                f"Daily loss circuit breaker triggered! "
+                f"Today's realised P&L: ₹{today_pnl:.2f} exceeds limit ₹{-MAX_SIMULATED_DAILY_LOSS:.2f}. "
+                f"No new trades will be placed today."
+            )
+            notify_circuit_breaker(today_pnl, MAX_SIMULATED_DAILY_LOSS)
+            log_daily_decision(decision_date=today, action="HALTED", reason=f"Circuit breaker: daily loss ₹{today_pnl:.2f}")
+            portfolio = get_portfolio_summary()
+            notify_daily_summary(portfolio, "HALTED", f"Circuit breaker triggered at ₹{today_pnl:.2f}")
+            return {
+                "status":      "halted",
+                "action":      "NO_TRADE",
+                "reason":      f"Circuit breaker: today's loss ₹{today_pnl:.2f} >= limit ₹{MAX_SIMULATED_DAILY_LOSS:.2f}.",
+                "exit_events": exit_events,
+                "portfolio":   portfolio,
+            }
 
-        logger.info(f"AI suggests {action} for {stock}.")
+        # -------------------------------------------------------
+        # 4. Get AI BUY decision for today (with TA + sentiment context)
+        # -------------------------------------------------------
+        decision = self.ai.get_decision(
+            news_text=news_text,
+            ta_context=ta_context,
+            sentiment_context=sentiment_context,
+        )
+        action = decision.get("action", "NO_TRADE")
+        reason = decision.get("reason", "No reason.")
+        recs   = decision.get("recommendations", [])
+
+        logger.info(f"AI suggests {action} with {len(recs)} recommendations.")
 
         # Persist the macro decision for the dashboard to display
         log_daily_decision(decision_date=today, action=action, reason=reason)
 
-        if action != "BUY" or stock in ("None", None, "NO_TRADE"):
+        if action != "BUY" or not recs:
             logger.info("No new trade taken today. Preserving capital.")
+            notify_no_trade(reason)
+            portfolio = get_portfolio_summary()
+            notify_daily_summary(portfolio, action, reason)
+            self._log_equity()
             return {
                 "status":       "success",
                 "action":       "NO_TRADE",
                 "reason":       reason,
                 "exit_events":  exit_events,
-                "portfolio":    get_portfolio_summary(),
+                "portfolio":    portfolio,
             }
 
         # -------------------------------------------------------
-        # 4. Duplicate position guard
+        # Loop through recommendations and place orders
         # -------------------------------------------------------
-        if already_holds_stock(stock):
-            logger.warning(
-                f"Already holding an open position in {stock}. "
-                f"Skipping new BUY to avoid overexposure."
+        placed_orders = []
+        for rec in recs:
+            stock = rec.get("stock")
+            sector = rec.get("sector", "Unknown")
+            rec_reason = rec.get("reason", "No reason provided.")
+            
+            if already_holds_stock(stock):
+                logger.warning(
+                    f"Already holding an open position in {stock}. "
+                    f"Skipping new BUY to avoid overexposure."
+                )
+                continue
+
+            ltp = self.kite.get_ltp(stock)
+            if ltp <= 0:
+                logger.error(f"Invalid LTP for {stock}. Skipping BUY.")
+                notify_error("ltp_fetch", f"Invalid LTP for {stock}")
+                continue
+
+            risk_per_share       = ltp * STOP_LOSS_PCT
+            allowed_qty_by_risk  = int(MAX_RISK_PER_TRADE // risk_per_share)
+            max_capital_for_trade = min(available_funds, TOTAL_CAPITAL)
+            allowed_qty_by_funds = int(max_capital_for_trade // ltp)
+            final_qty            = min(allowed_qty_by_risk, allowed_qty_by_funds)
+
+            if final_qty <= 0:
+                logger.warning(f"Calculated qty is 0 for {stock} at ₹{ltp}. Skipping.")
+                continue
+
+            logger.info(
+                f"Sizing: {final_qty} shares of {stock} @ ₹{ltp} "
+                f"| Trade value: ₹{final_qty * ltp:.2f} "
+                f"| Max risk: ₹{MAX_RISK_PER_TRADE:.2f}"
             )
-            return {
-                "status":      "success",
-                "action":      "NO_TRADE",
-                "reason":      f"Duplicate position guard: already hold {stock}.",
-                "exit_events": exit_events,
-                "portfolio":   get_portfolio_summary(),
-            }
 
-        # -------------------------------------------------------
-        # 5. Calculate position size
-        # -------------------------------------------------------
-        ltp = self.kite.get_ltp(stock)
-        if ltp <= 0:
-            logger.error(f"Invalid LTP for {stock}. Aborting BUY.")
-            return {"status": "error", "message": "Invalid LTP."}
+            order_result = self.kite.place_buy_order(symbol=stock, quantity=final_qty)
 
-        risk_per_share       = ltp * ASSUMED_SL_PERCENT
-        allowed_qty_by_risk  = int(MAX_RISK_PER_TRADE // risk_per_share)
-        max_capital_for_trade = min(available_funds, TOTAL_CAPITAL)
-        allowed_qty_by_funds = int(max_capital_for_trade // ltp)
-        final_qty            = min(allowed_qty_by_risk, allowed_qty_by_funds)
+            if order_result.get("status") != "success":
+                msg = order_result.get("message", "Order failed.")
+                logger.error(f"BUY order failed for {stock}: {msg}")
+                notify_error("buy_order", msg)
+                continue
 
-        if final_qty <= 0:
-            logger.warning(f"Calculated qty is 0 for {stock} at ₹{ltp}. Stock too expensive for risk cap.")
-            return {"status": "error", "message": "Calculated quantity is 0."}
+            trade_id = insert_trade(
+                stock=stock,
+                sector=sector,
+                quantity=final_qty,
+                entry_price=ltp,
+                entry_date=today,
+                entry_thesis=rec_reason,
+                order_id=order_result.get("order_id", "unknown"),
+            )
+            logger.info(f"Trade #{trade_id} persisted to DB: BUY {final_qty} x {stock} @ ₹{ltp}")
 
-        logger.info(
-            f"Sizing: {final_qty} shares of {stock} @ ₹{ltp} "
-            f"| Trade value: ₹{final_qty * ltp:.2f} "
-            f"| Max risk: ₹{MAX_RISK_PER_TRADE:.2f}"
-        )
+            notify_buy(
+                stock=stock,
+                sector=sector,
+                quantity=final_qty,
+                price=ltp,
+                trade_id=trade_id,
+                reason=rec_reason,
+            )
+            
+            placed_orders.append({
+                "trade_id": trade_id,
+                "stock": stock,
+                "quantity": final_qty,
+                "price": ltp
+            })
+            
+            # Deduct funds for next iteration
+            available_funds -= (final_qty * ltp)
 
-        # -------------------------------------------------------
-        # 6. Place BUY order
-        # -------------------------------------------------------
-        order_result = self.kite.place_buy_order(symbol=stock, quantity=final_qty)
-
-        if order_result.get("status") != "success":
-            logger.error(f"BUY order failed: {order_result.get('message')}")
-            return {"status": "error", "message": order_result.get("message", "Order failed.")}
-
-        # -------------------------------------------------------
-        # 7. Persist trade to PostgreSQL
-        # -------------------------------------------------------
-        trade_id = insert_trade(
-            stock=stock,
-            sector=sector,
-            quantity=final_qty,
-            entry_price=ltp,
-            entry_date=today,
-            entry_thesis=reason,
-            order_id=order_result.get("order_id", "unknown"),
-        )
-        logger.info(f"Trade #{trade_id} persisted to DB: BUY {final_qty} x {stock} @ ₹{ltp}")
+        portfolio = get_portfolio_summary()
+        summary_msg = f"Bought {len(placed_orders)} stocks: " + ", ".join([o["stock"] for o in placed_orders]) if placed_orders else "No buys placed."
+        notify_daily_summary(portfolio, "BUY" if placed_orders else "NO_TRADE", summary_msg)
+        
+        self._log_equity()
 
         return {
             "status":       "success",
-            "action":       "BUY",
-            "trade_id":     trade_id,
-            "stock":        stock,
-            "sector":       sector,
-            "quantity":     final_qty,
-            "ltp":          ltp,
-            "order_result": order_result,
+            "action":       "BUY" if placed_orders else "NO_TRADE",
+            "placed_orders": placed_orders,
             "reason":       reason,
             "exit_events":  exit_events,
-            "portfolio":    get_portfolio_summary(),
+            "portfolio":    portfolio,
         }
+
+    def _log_equity(self):
+        """Helper to calculate and log today's equity"""
+        from database import get_open_trades, log_daily_equity, get_portfolio_summary
+        from config import TOTAL_CAPITAL, LIVE_MODE
+        
+        open_trades = get_open_trades()
+        summary = get_portfolio_summary()
+        
+        if not LIVE_MODE:
+            unrealised_pnl = 0
+            for t in open_trades:
+                ltp = self.kite.get_ltp(t["stock"])
+                if ltp > 0:
+                    unrealised_pnl += (ltp - float(t["entry_price"])) * int(t["quantity"])
+            total_realised_pnl = float(summary.get("total_realised_pnl", 0))
+            equity = TOTAL_CAPITAL + total_realised_pnl + unrealised_pnl
+        else:
+            funds = self.kite.get_available_funds()
+            open_val = 0
+            for t in open_trades:
+                ltp = self.kite.get_ltp(t["stock"])
+                if ltp > 0:
+                    open_val += int(t["quantity"]) * ltp
+            equity = funds + open_val
+            
+        log_daily_equity(date.today(), equity)
+        logger.info(f"Daily equity logged: ₹{equity:.2f}")
 
 
 if __name__ == "__main__":

@@ -40,22 +40,40 @@ Your task is to read the latest financial news and determine if there is a CLEAR
 
 Capital preservation is your #1 priority. If the news is mixed, uncertain, lacks a strong positive catalyst, or mentions global economic fears, your action MUST be NO_TRADE.
 
+ADDITIONAL RULE — Technical filters (hard gates, non-negotiable):
+- Do NOT recommend a stock with RSI > 70 (overbought — bad entry timing).
+- Do NOT recommend a stock trading more than 5% BELOW its 20-day SMA (downtrend).
+- PREFER stocks with HIGH_VOLUME (volume ratio > 1.5x) as it confirms conviction.
+- If the technically best stock fails these filters, set action=NO_TRADE.
+
 Liquid Universe (ONLY stocks you may recommend):
 {liquid_universe}
 
+Technical Indicators (current snapshot):
+{ta_context}
+
+News Sentiment Summary (pre-scored):
+{sentiment_context}
+
 Instructions:
 1. Analyse each news article for macroeconomic and sector-specific catalysts.
-2. If ONE sector has an exceptionally strong, unambiguous positive catalyst, identify it.
-3. Select exactly ONE stock from the Liquid Universe that best benefits from that sector.
-4. If no clear bullish edge exists, set action=NO_TRADE, sector=None, stock=None.
-5. Provide step-by-step chain-of-thought reasoning.
-6. Return ONLY valid JSON matching this exact schema — no markdown, no preamble:
+2. Identify up to 3 sectors with exceptionally strong, unambiguous positive catalysts.
+3. Select up to 3 stocks from the Liquid Universe that best benefit from those sectors.
+4. Apply the technical filters above — reject overbought or downtrending candidates.
+5. If no clear bullish edge exists OR all candidates fail technical filters, set action=NO_TRADE and recommendations=[].
+6. Provide step-by-step chain-of-thought reasoning.
+7. Return ONLY valid JSON matching this exact schema — no markdown, no preamble:
 
 {{
   "action": "BUY" | "NO_TRADE",
-  "sector": "<sector name or None>",
-  "stock": "<NSE symbol or None>",
-  "reason": "<step-by-step reasoning>"
+  "reason": "<overall macroeconomic reasoning>",
+  "recommendations": [
+    {{
+      "stock": "<NSE symbol>",
+      "sector": "<sector name>",
+      "reason": "<stock specific reasoning>"
+    }}
+  ]
 }}
 
 Today's News:
@@ -67,7 +85,7 @@ Today's News:
 # ==========================================
 
 HOLD_SELL_PROMPT = """You are a conservative portfolio risk manager for an Indian stock trading bot.
-You must evaluate whether to HOLD or SELL an existing open position based on today's news.
+You must evaluate whether to HOLD or SELL an existing open position based on today's news and technical data.
 
 Your job is to determine if the original investment thesis still holds.
 If the thesis has reversed, weakened significantly, or if new risks have emerged for this stock/sector, you should recommend SELL.
@@ -82,6 +100,9 @@ Open Position Details:
 - Entry Date: {entry_date}
 - Original Entry Thesis: {entry_thesis}
 
+Current Technical Snapshot:
+{ta_snapshot}
+
 Today's News:
 {news_data}
 
@@ -90,7 +111,7 @@ Return ONLY valid JSON matching this exact schema — no markdown, no preamble:
 {{
   "verdict": "HOLD" | "SELL",
   "thesis_intact": true | false,
-  "reasoning": "<step-by-step reasoning referencing today's news>"
+  "reasoning": "<step-by-step reasoning referencing today's news and technical data>"
 }}"""
 
 
@@ -145,15 +166,24 @@ class AIDecisionMaker:
     # PUBLIC METHOD 1: Daily BUY / NO_TRADE
     # ------------------------------------------------------------------
 
-    def get_decision(self, news_text: str) -> Dict[str, Any]:
+    def get_decision(
+        self,
+        news_text: str,
+        ta_context: str = "",
+        sentiment_context: str = ""
+    ) -> Dict[str, Any]:
         """
-        Analyses today's news and returns a BUY or NO_TRADE decision.
+        Analyses today's news (plus optional TA and sentiment) and returns a BUY or NO_TRADE decision.
+
+        Args:
+            news_text: Formatted news string from NewsFetcher.
+            ta_context: Multi-stock technical indicator summary from technical_analysis.py.
+            sentiment_context: Sector sentiment scores from NewsFetcher.get_sector_sentiment().
         """
         no_trade = {
             "action": "NO_TRADE",
-            "sector": "None",
-            "stock": "None",
-            "reason": ""
+            "reason": "",
+            "recommendations": []
         }
 
         if not self.llm:
@@ -167,6 +197,8 @@ class AIDecisionMaker:
 
         prompt = BUY_DECISION_PROMPT.format(
             liquid_universe=", ".join(LIQUID_UNIVERSE),
+            ta_context=ta_context or "Technical data unavailable — skip technical filters.",
+            sentiment_context=sentiment_context or "Sentiment data unavailable.",
             news_data=news_text
         )
 
@@ -179,23 +211,30 @@ class AIDecisionMaker:
             return no_trade
 
         action = result.get("action", "NO_TRADE")
-        stock  = result.get("stock", "None")
+        recs = result.get("recommendations", [])
 
         # Hard safety check: reject hallucinated stocks not in universe
-        if action == "BUY" and stock not in LIQUID_UNIVERSE:
-            logger.warning(
-                f"Gemini suggested BUY for '{stock}' which is NOT in LIQUID_UNIVERSE. "
-                f"Overriding to NO_TRADE."
-            )
+        valid_recs = []
+        for rec in recs:
+            stock = rec.get("stock", "")
+            if stock in LIQUID_UNIVERSE:
+                valid_recs.append(rec)
+            else:
+                logger.warning(
+                    f"Gemini suggested BUY for '{stock}' which is NOT in LIQUID_UNIVERSE. "
+                    f"Skipping this recommendation."
+                )
+        
+        result["recommendations"] = valid_recs
+        
+        if action == "BUY" and not valid_recs:
             result["action"] = "NO_TRADE"
-            result["stock"]  = "None"
-            result["sector"] = "None"
             result["reason"] = (
-                f"OVERRIDE: '{stock}' is not in the approved Liquid Universe. "
+                f"OVERRIDE: All recommended stocks were not in the approved Liquid Universe. "
                 f"Original reasoning: {result.get('reason', '')}"
             )
 
-        logger.info(f"Gemini Decision: {result.get('action')} | Stock: {result.get('stock')}")
+        logger.info(f"Gemini Decision: {result.get('action')} | Stocks: {[r.get('stock') for r in result.get('recommendations', [])]}")
         return result
 
     # ------------------------------------------------------------------
@@ -210,10 +249,14 @@ class AIDecisionMaker:
         current_price: float,
         entry_date: str,
         entry_thesis: str,
-        news_text: str
+        news_text: str,
+        ta_snapshot: str = ""
     ) -> Dict[str, Any]:
         """
         Evaluates an open position daily and recommends HOLD or SELL.
+
+        Args:
+            ta_snapshot: Single-stock TA summary string from technical_analysis.get_technical_snapshot().
         """
         default_hold = {
             "verdict": "HOLD",
@@ -236,6 +279,7 @@ class AIDecisionMaker:
             pnl_pct=round(pnl_pct, 2),
             entry_date=entry_date,
             entry_thesis=entry_thesis,
+            ta_snapshot=ta_snapshot or "Technical data unavailable.",
             news_data=news_text
         )
 

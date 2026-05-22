@@ -20,27 +20,39 @@ LIVE_MODE: bool = os.getenv("LIVE_MODE", "False").lower() in ("true", "1", "t", 
 
 # Capital allocation
 TOTAL_CAPITAL: float = float(os.getenv("TOTAL_CAPITAL", "50000.0"))
-MAX_RISK_PER_TRADE: float = TOTAL_CAPITAL * 0.005  # STRICT: 0.5% risk per trade
+MAX_RISK_PER_TRADE_PCT: float = float(os.getenv("MAX_RISK_PER_TRADE_PCT", "0.005"))
+MAX_RISK_PER_TRADE: float = TOTAL_CAPITAL * MAX_RISK_PER_TRADE_PCT  # STRICT risk per trade
 MAX_SIMULATED_DAILY_LOSS: float = TOTAL_CAPITAL * 0.01  # Auto-pause threshold (1% overall drawdown)
+
+# Trade Management Thresholds
+STOP_LOSS_PCT: float = float(os.getenv("STOP_LOSS_PCT", "0.05"))
+PROFIT_TARGET_PCT: float = float(os.getenv("PROFIT_TARGET_PCT", "0.15"))
+TRAILING_STOP_PCT: float = float(os.getenv("TRAILING_STOP_PCT", "0.03"))
 
 # Execution parameters
 ORDER_PRODUCT: str = "CNC"  # Delivery only, NO intraday leverage (no MIS/BO/CO)
 ORDER_TYPE: str = "MARKET"
 
 # Universe of highly liquid NSE stocks to consider
-# Ordered loosely by sector: Energy, Banking, IT, FMCG, Telecom, Pharma, Auto, Metals, Realty
+# Ordered loosely by sector: Energy, Banking, IT, FMCG, Telecom, Pharma, Auto, Metals, Realty, Finance, Consumer
 LIQUID_UNIVERSE: List[str] = [
     "RELIANCE",     # Energy / Conglomerate
     "HDFCBANK",     # Banking
     "ICICIBANK",    # Banking
     "SBIN",         # Banking (PSU)
+    "KOTAKBANK",    # Banking (Private)
+    "BAJFINANCE",   # NBFC / Consumer Finance
     "INFY",         # IT
     "TCS",          # IT
+    "WIPRO",        # IT
     "ITC",          # FMCG
+    "HINDUNILVR",   # FMCG
     "BHARTIARTL",   # Telecom
     "SUNPHARMA",    # Pharma
     "MARUTI",       # Auto
     "TATASTEEL",    # Metals
+    "TITAN",        # Consumer / Jewellery
+    "ASIANPAINT",   # Consumer / Paints
     "DLF"           # Realty
 ]
 

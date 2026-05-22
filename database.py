@@ -94,6 +94,23 @@ def initialize_database():
                 );
             """)
 
+            # --- Trailing stop: add highest_price column if it doesn't exist yet ---
+            cur.execute("""
+                ALTER TABLE trades
+                ADD COLUMN IF NOT EXISTS highest_price NUMERIC(12, 2);
+            """)
+
+            # --- Daily Equity Log ---
+            # Tracks historical portfolio equity for charting
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS daily_equity_log (
+                    id              SERIAL PRIMARY KEY,
+                    log_date        DATE            NOT NULL UNIQUE,
+                    equity          NUMERIC(12, 2)  NOT NULL,
+                    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+                );
+            """)
+
         conn.commit()
         print("[DB] Database initialized successfully.")
     except Exception as e:
@@ -193,6 +210,35 @@ def already_holds_stock(stock: str) -> bool:
             )
             count = cur.fetchone()[0]
             return count > 0
+    finally:
+        conn.close()
+
+
+def get_today_realised_pnl(for_date: date) -> float:
+    """Returns the total realised P&L for trades closed today (for circuit breaker)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(SUM(pnl), 0) FROM trades WHERE status = 'CLOSED' AND exit_date = %s;",
+                (for_date,)
+            )
+            return float(cur.fetchone()[0])
+    finally:
+        conn.close()
+
+
+def update_highest_price(trade_id: int, price: float):
+    """Updates the highest_price seen for a trade (used for trailing stop-loss)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE trades
+                SET highest_price = GREATEST(COALESCE(highest_price, entry_price), %s)
+                WHERE id = %s AND status = 'OPEN';
+            """, (price, trade_id))
+        conn.commit()
     finally:
         conn.close()
 
@@ -333,6 +379,40 @@ def get_portfolio_summary() -> Dict[str, Any]:
             return dict(cur.fetchone())
     finally:
         conn.close()
+
+
+# ==========================================
+# EQUITY LOGGING
+# ==========================================
+
+def log_daily_equity(log_date: date, equity: float):
+    """Persists total portfolio equity for charting."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO daily_equity_log (log_date, equity)
+                VALUES (%s, %s)
+                ON CONFLICT (log_date) DO UPDATE
+                    SET equity = EXCLUDED.equity;
+            """, (log_date, equity))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_equity_history(limit: int = 60) -> List[Dict[str, Any]]:
+    """Returns daily equity history."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT * FROM daily_equity_log ORDER BY log_date ASC LIMIT %s;
+            """, (limit,))
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
 
 
 if __name__ == "__main__":

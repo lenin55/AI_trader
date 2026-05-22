@@ -3,29 +3,36 @@ Sell Logic Module for rupee50k-ai-sector-trader.
 Evaluates all open positions daily and determines if any should be exited.
 
 Exit conditions (applied in priority order):
-  1. STOP_LOSS     — Current price dropped >= 5% below entry price (hard floor, non-negotiable)
-  2. PROFIT_TARGET — Current price rose >= 15% above entry price (lock in gains)
-  3. AI_EXIT       — Claude re-evaluates the original thesis vs today's news and recommends SELL
+  1. TRAILING_STOP — Price falls >= 3% from the highest price seen since entry
+  2. STOP_LOSS     — Current price dropped >= 5% below entry price (hard floor, non-negotiable)
+  3. PROFIT_TARGET — Current price rose >= 15% above entry price (lock in gains)
+  4. AI_EXIT       — Gemini re-evaluates the original thesis vs today's news and recommends SELL
 
 All exits are logged to PostgreSQL and trigger a real/paper SELL order via KiteClient.
 """
 
 from datetime import date
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
-from config import logger
+from config import (
+    logger,
+    STOP_LOSS_PCT,
+    PROFIT_TARGET_PCT,
+    TRAILING_STOP_PCT
+)
 from database import (
     get_open_trades,
     close_trade,
     insert_evaluation,
+    update_highest_price,
 )
 from ai_decision import AIDecisionMaker
 
-# ==========================================
-# RISK / REWARD THRESHOLDS
-# ==========================================
-STOP_LOSS_PCT    = 0.05   # Exit immediately if price drops 5% from entry
-PROFIT_TARGET_PCT = 0.15  # Exit and lock gains if price rises 15% from entry
+try:
+    from technical_analysis import get_technical_snapshot
+    _TA_AVAILABLE = True
+except ImportError:
+    _TA_AVAILABLE = False
 
 
 class SellEngine:
@@ -76,17 +83,20 @@ class SellEngine:
     def _evaluate_trade(self, trade: Dict[str, Any], news_text: str) -> Dict[str, Any]:
         """
         Applies all exit checks to one trade in priority order:
-          1. Stop-loss (hard rule — checked before AI to save API calls)
-          2. Profit target (hard rule)
-          3. AI thesis re-evaluation (soft rule)
+          1. Trailing stop-loss (adapts as price rises — lets winners run)
+          2. Hard stop-loss from entry (absolute floor)
+          3. Profit target (hard lock-in)
+          4. AI thesis re-evaluation (soft rule)
         """
-        trade_id    = trade["id"]
-        stock       = trade["stock"]
-        sector      = trade["sector"] or "Unknown"
-        entry_price = float(trade["entry_price"])
-        quantity    = int(trade["quantity"])
-        entry_date  = str(trade["entry_date"])
+        trade_id     = trade["id"]
+        stock        = trade["stock"]
+        sector       = trade["sector"] or "Unknown"
+        entry_price  = float(trade["entry_price"])
+        quantity     = int(trade["quantity"])
+        entry_date   = str(trade["entry_date"])
         entry_thesis = trade["entry_thesis"] or "No thesis recorded."
+        # highest_price may be NULL for old trades — default to entry_price
+        highest_price = float(trade["highest_price"]) if trade.get("highest_price") else entry_price
 
         # Fetch live price
         current_price = self.kite.get_ltp(stock)
@@ -94,16 +104,39 @@ class SellEngine:
             logger.warning(f"[SellEngine] Could not fetch LTP for {stock}. Skipping exit check.")
             return {}
 
+        # Update highest price seen (for trailing stop tracking)
+        if current_price > highest_price:
+            highest_price = current_price
+            update_highest_price(trade_id, current_price)
+
         pnl_per_share = current_price - entry_price
         pnl_total     = pnl_per_share * quantity
         pnl_pct       = (pnl_per_share / entry_price) * 100
+        drop_from_high_pct = ((current_price - highest_price) / highest_price) * 100
 
         logger.info(
             f"[SellEngine] {stock} | Entry: ₹{entry_price} | "
-            f"Current: ₹{current_price} | P&L: ₹{pnl_total:.2f} ({pnl_pct:.2f}%)"
+            f"High: ₹{highest_price} | Current: ₹{current_price} | "
+            f"P&L: ₹{pnl_total:.2f} ({pnl_pct:.2f}%) | Drop from high: {drop_from_high_pct:.2f}%"
         )
 
-        # ---- Rule 1: Hard Stop-Loss ----
+        # ---- Rule 1: Trailing Stop-Loss ----
+        # Only activates once position is profitable (price above entry)
+        if current_price > entry_price and drop_from_high_pct <= -(TRAILING_STOP_PCT * 100):
+            reason = (
+                f"Trailing stop triggered: price fell {abs(drop_from_high_pct):.2f}% "
+                f"from high of ₹{highest_price} "
+                f"(threshold: -{TRAILING_STOP_PCT*100:.0f}%). "
+                f"Current: ₹{current_price}. Locking in gains."
+            )
+            logger.warning(f"[SellEngine] TRAILING_STOP triggered for {stock}. {reason}")
+            return self._execute_exit(
+                trade_id, stock, quantity, current_price,
+                pnl_total, pnl_pct, "TRAILING_STOP", reason,
+                ai_verdict="SELL", thesis_intact=True
+            )
+
+        # ---- Rule 2: Hard Stop-Loss from entry ----
         if pnl_pct <= -(STOP_LOSS_PCT * 100):
             reason = (
                 f"Stop-loss triggered at {pnl_pct:.2f}% loss "
@@ -117,7 +150,7 @@ class SellEngine:
                 ai_verdict="SELL", thesis_intact=False
             )
 
-        # ---- Rule 2: Profit Target ----
+        # ---- Rule 3: Profit Target ----
         if pnl_pct >= (PROFIT_TARGET_PCT * 100):
             reason = (
                 f"Profit target reached at {pnl_pct:.2f}% gain "
@@ -128,10 +161,17 @@ class SellEngine:
             return self._execute_exit(
                 trade_id, stock, quantity, current_price,
                 pnl_total, pnl_pct, "PROFIT_TARGET", reason,
-                ai_verdict="SELL", thesis_intact=True  # Good exit, thesis may still be intact
+                ai_verdict="SELL", thesis_intact=True
             )
 
-        # ---- Rule 3: AI Thesis Re-Evaluation ----
+        # ---- Rule 4: AI Thesis Re-Evaluation ----
+        # Enrich with live TA snapshot for the specific stock
+        ta_snapshot = ""
+        if _TA_AVAILABLE:
+            ta_data = get_technical_snapshot(stock)
+            if ta_data:
+                ta_snapshot = ta_data.get("signal_summary", "")
+
         ai_eval = self.ai.evaluate_position(
             stock=stock,
             sector=sector,
@@ -139,7 +179,8 @@ class SellEngine:
             current_price=current_price,
             entry_date=entry_date,
             entry_thesis=entry_thesis,
-            news_text=news_text
+            news_text=news_text,
+            ta_snapshot=ta_snapshot,
         )
 
         verdict       = ai_eval.get("verdict", "HOLD")
