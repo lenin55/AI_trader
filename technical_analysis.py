@@ -1,5 +1,5 @@
 """
-Technical Analysis module for rupee50k-ai-sector-trader.
+Technical Analysis module for NiftyMind.
 Fetches OHLCV data from Yahoo Finance and computes indicators
 that are passed to the AI as structured context alongside news.
 

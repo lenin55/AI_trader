@@ -1,5 +1,5 @@
 """
-Trading Logic Module for rupee50k-ai-sector-trader.
+Trading Logic Module for NiftyMind.
 Orchestrates the full daily routine:
   1. Exit checks on all open positions (stop-loss, profit target, AI thesis re-eval)
   2. BUY decision for today if no conflicting position exists
@@ -46,7 +46,7 @@ except ImportError:
     _TA_AVAILABLE = False
 
 
-class SectorTrader:
+class NiftyMind:
 
     def __init__(self):
         # Ensure all DB tables exist on first run
@@ -288,6 +288,6 @@ class SectorTrader:
 
 if __name__ == "__main__":
     import json
-    trader = SectorTrader()
+    trader = NiftyMind()
     result = trader.execute_daily_routine()
     print(json.dumps(result, indent=2, default=str))

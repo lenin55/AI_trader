@@ -1,5 +1,5 @@
 """
-AI Decision Module for rupee50k-ai-sector-trader.
+AI Decision Module for NiftyMind.
 Uses Google Gemini for:
   1. Daily BUY / NO_TRADE decision based on news.
   2. Daily HOLD / SELL evaluation of existing open positions.

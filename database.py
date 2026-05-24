@@ -1,5 +1,5 @@
 """
-Database module for rupee50k-ai-sector-trader.
+Database module for NiftyMind.
 Handles PostgreSQL persistence for trades, news logs, and daily evaluations.
 """
 

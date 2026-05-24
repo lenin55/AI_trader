@@ -1,5 +1,5 @@
 """
-Streamlit Dashboard for rupee50k-ai-sector-trader.
+Streamlit Dashboard for NiftyMind.
 Dark trading terminal aesthetic — neon accents, glassmorphism cards, live ticker strip.
 
 Run with: streamlit run dashboard.py
@@ -27,7 +27,7 @@ from config import LIVE_MODE, MAX_RISK_PER_TRADE, TOTAL_CAPITAL
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Apex AI Trader",
+    page_title="NiftyMind",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -93,10 +93,33 @@ st.markdown("""
     [data-testid="stSidebar"] {
         background: var(--bg2) !important;
         border-right: 1px solid var(--border) !important;
+        position: relative !important;
     }
     [data-testid="stSidebar"] > div:first-child {
         background: var(--bg2) !important;
         padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+    }
+    /* Kill every layer of Streamlit's default top padding in the sidebar */
+    [data-testid="stSidebarContent"],
+    [data-testid="stSidebarUserContent"],
+    [data-testid="stSidebarHeader"],
+    [data-testid="stSidebar"] > div > div,
+    [data-testid="stSidebar"] section,
+    [data-testid="stSidebar"] .css-1d391kg,
+    [data-testid="stSidebar"] .css-18ni7ap,
+    [data-testid="stSidebar"] .css-pkbazv {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+    }
+    /* Collapse the collapse-button wrapper so it takes zero height in DOM flow */
+    [data-testid="stSidebarCollapseButton"] {
+        height: 0 !important;
+        overflow: visible !important;
     }
 
     /* === METRIC CONTAINERS === */
@@ -323,9 +346,9 @@ st.markdown("""
         margin-top: 8px;
     }
     .sidebar-logo-block {
-        padding: 10px 16px 16px; /* Reduced top padding */
+        padding: 12px 16px 12px;
         border-bottom: 1px solid var(--border);
-        margin-bottom: 8px;
+        margin-bottom: 0;
     }
     .sidebar-logo-title {
         font-size: 15px;
@@ -399,9 +422,12 @@ st.markdown("""
     .eval-hold { border-left: 3px solid var(--green); }
     .eval-sell { border-left: 3px solid var(--red); }
 
-    /* === SIDEBAR TOGGLE — Style Streamlit's NATIVE buttons to be visible & themed === */
-    /* The collapse button (inside sidebar, top-right) */
+    /* === SIDEBAR TOGGLE — absolutely positioned inside sidebar top-right === */
     [data-testid="stSidebarCollapseButton"] {
+        position: absolute !important;
+        top: 10px !important;
+        right: 10px !important;
+        z-index: 999 !important;
         display: block !important;
         visibility: visible !important;
     }
@@ -422,6 +448,17 @@ st.markdown("""
         width: 20px !important;
         height: 20px !important;
     }
+
+    /* === PORTFOLIO SCROLL AREA === */
+    .portfolio-scroll-area {
+        overflow-y: auto;
+        max-height: calc(100vh - 310px);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,212,255,0.3) transparent;
+    }
+    .portfolio-scroll-area::-webkit-scrollbar { width: 4px; }
+    .portfolio-scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .portfolio-scroll-area::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 2px; }
     /* The expand button (in main area when sidebar is collapsed) */
     [data-testid="collapsedControl"] {
         position: fixed !important;
@@ -685,7 +722,7 @@ with st.sidebar:
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
             <div style="width:32px;height:32px;background:linear-gradient(135deg,#00D4FF,#0066FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
             <div>
-                <div class="sidebar-logo-title">Apex AI Trader</div>
+                <div class="sidebar-logo-title">NiftyMind</div>
                 <div class="sidebar-logo-sub">NSE Algo Intelligence</div>
             </div>
         </div>
@@ -707,8 +744,8 @@ with st.sidebar:
     if st.button("⚡ Execute Daily Analysis", use_container_width=True, type="primary"):
         with st.spinner("Running AI analysis..."):
             try:
-                from trading_logic import SectorTrader
-                trader = SectorTrader()
+                from trading_logic import NiftyMind
+                trader = NiftyMind()
                 result = trader.execute_daily_routine()
                 if result.get("status") == "success":
                     st.success(f"✅ {result.get('action')}")
@@ -724,7 +761,7 @@ with st.sidebar:
 
     st.markdown('<div style="height:1px;background:rgba(255,255,255,0.06);margin:12px 8px;"></div>', unsafe_allow_html=True)
 
-    # Portfolio metrics
+    # Portfolio metrics — computed before building the single HTML block
     summary = get_portfolio_summary() if not db_error else {}
     pnl_total = float(summary.get("total_realised_pnl", 0))
     pnl_pct   = (pnl_total / TOTAL_CAPITAL) * 100
@@ -736,23 +773,23 @@ with st.sidebar:
     pnl_class = "stat-val-green" if pnl_total >= 0 else "stat-val-red"
     pnl_sign  = "+" if pnl_total >= 0 else ""
 
-    st.markdown('<div class="nav-section">Portfolio</div>', unsafe_allow_html=True)
+    # ── Single markdown block so the scroll wrapper actually wraps the content ──
     st.markdown(f"""
-    <div class="stat-row"><span class="stat-key">Capital</span><span class="stat-val">₹{TOTAL_CAPITAL:,.0f}</span></div>
-    <div class="stat-row"><span class="stat-key">Realised P&amp;L</span><span class="stat-val {pnl_class}">{pnl_sign}₹{pnl_total:,.2f}</span></div>
-    <div class="stat-row"><span class="stat-key">Return</span><span class="stat-val {pnl_class}">{pnl_sign}{pnl_pct:.2f}%</span></div>
-    <div class="stat-row"><span class="stat-key">Open Positions</span><span class="stat-val">{open_pos}</span></div>
-    <div class="stat-row"><span class="stat-key">Closed Trades</span><span class="stat-val">{closed_trades}</span></div>
-    <div class="stat-row"><span class="stat-key">Win Rate</span><span class="stat-val neon-green">{win_rate:.1f}%</span></div>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.06);margin:12px 8px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="nav-section">Risk Parameters</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="stat-row"><span class="stat-key">Max Risk/Trade</span><span class="stat-val">₹{MAX_RISK_PER_TRADE:,.0f}</span></div>
-    <div class="stat-row"><span class="stat-key">Stop-Loss</span><span class="stat-val neon-red">-5.0%</span></div>
-    <div class="stat-row"><span class="stat-key">Profit Target</span><span class="stat-val neon-green">+15.0%</span></div>
-    <div class="stat-row"><span class="stat-key">Trailing Stop</span><span class="stat-val" style="color:var(--gold)">-3.0%</span></div>
+    <div class="portfolio-scroll-area">
+        <div class="nav-section">Portfolio</div>
+        <div class="stat-row"><span class="stat-key">Capital</span><span class="stat-val">₹{TOTAL_CAPITAL:,.0f}</span></div>
+        <div class="stat-row"><span class="stat-key">Realised P&amp;L</span><span class="stat-val {pnl_class}">{pnl_sign}₹{pnl_total:,.2f}</span></div>
+        <div class="stat-row"><span class="stat-key">Return</span><span class="stat-val {pnl_class}">{pnl_sign}{pnl_pct:.2f}%</span></div>
+        <div class="stat-row"><span class="stat-key">Open Positions</span><span class="stat-val">{open_pos}</span></div>
+        <div class="stat-row"><span class="stat-key">Closed Trades</span><span class="stat-val">{closed_trades}</span></div>
+        <div class="stat-row"><span class="stat-key">Win Rate</span><span class="stat-val neon-green">{win_rate:.1f}%</span></div>
+        <div style="height:1px;background:rgba(255,255,255,0.06);margin:12px 8px;"></div>
+        <div class="nav-section">Risk Parameters</div>
+        <div class="stat-row"><span class="stat-key">Max Risk/Trade</span><span class="stat-val">₹{MAX_RISK_PER_TRADE:,.0f}</span></div>
+        <div class="stat-row"><span class="stat-key">Stop-Loss</span><span class="stat-val neon-red">-5.0%</span></div>
+        <div class="stat-row"><span class="stat-key">Profit Target</span><span class="stat-val neon-green">+15.0%</span></div>
+        <div class="stat-row"><span class="stat-key">Trailing Stop</span><span class="stat-val" style="color:var(--gold)">-3.0%</span></div>
+    </div>
     """, unsafe_allow_html=True)
 
 
@@ -772,7 +809,7 @@ st.markdown(f"""
     <div class="header-logo">
         <div class="header-logo-icon">⚡</div>
         <div>
-            <div class="header-title">Apex AI Trader</div>
+            <div class="header-title">NiftyMind</div>
             <div class="header-subtitle">NSE Delivery · Gemini AI Engine · Algo Intelligence</div>
         </div>
     </div>
@@ -1643,7 +1680,7 @@ with tab5:
                 if _tok and _cid:
                     r = _req.post(
                         f"https://api.telegram.org/bot{_tok}/sendMessage",
-                        json={"chat_id": _cid, "text": "⚡ *Apex AI Trader* — test message from Settings page ✅", "parse_mode":"Markdown"},
+                        json={"chat_id": _cid, "text": "⚡ *NiftyMind* — test message from Settings page ✅", "parse_mode":"Markdown"},
                         timeout=8
                     )
                     if r.json().get("ok"):
@@ -1772,7 +1809,7 @@ st.markdown("""
     gap: 24px;
     flex-wrap: wrap;
 ">
-    <span style="font-size:12px;color:#334155;">⚡ Apex AI Trader</span>
+    <span style="font-size:12px;color:#334155;">⚡ NiftyMind</span>
     <span style="color:#1E293B;">·</span>
     <span style="font-size:12px;color:#334155;">NSE Delivery · Gemini 2.5 Flash</span>
     <span style="color:#1E293B;">·</span>

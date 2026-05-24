@@ -1,5 +1,5 @@
 """
-Main entry point and scheduler for rupee50k-ai-sector-trader.
+Main entry point and scheduler for NiftyMind.
 Runs the daily trading routine at 9:00 AM IST on weekdays (excluding NSE holidays).
 """
 
@@ -10,7 +10,7 @@ from datetime import datetime, date
 import sys
 
 from config import logger
-from trading_logic import SectorTrader
+from trading_logic import NiftyMind
 
 # NSE market holidays — update this list annually.
 # Source: NSE India official holiday calendar.
@@ -66,7 +66,7 @@ def job():
         return
 
     logger.info("Executing Scheduled Job...")
-    trader = SectorTrader()
+    trader = NiftyMind()
     trader.execute_daily_routine()
     logger.info("Scheduled Job Completed.")
 

@@ -1,5 +1,5 @@
 """
-Notifier module for rupee50k-ai-sector-trader.
+Notifier module for NiftyMind.
 Sends real-time alerts to Telegram for all significant trading events.
 
 Alert types:

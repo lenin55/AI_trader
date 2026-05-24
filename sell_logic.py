@@ -1,5 +1,5 @@
 """
-Sell Logic Module for rupee50k-ai-sector-trader.
+Sell Logic Module for NiftyMind.
 Evaluates all open positions daily and determines if any should be exited.
 
 Exit conditions (applied in priority order):

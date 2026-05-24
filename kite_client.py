@@ -1,5 +1,5 @@
 """
-Kite Client module for rupee50k-ai-sector-trader.
+Kite Client module for NiftyMind.
 Provides a secure wrapper around Zerodha's Kite Connect API for market data and orders.
 Now includes place_sell_order() to support the SellEngine.
 """

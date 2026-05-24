@@ -1,5 +1,5 @@
 """
-News Fetcher module for rupee50k-ai-sector-trader.
+News Fetcher module for NiftyMind.
 Retrieves the latest business and economic news for India using NewsData.io API.
 Also provides lightweight sector sentiment scoring using VADER.
 """

@@ -1,5 +1,5 @@
 """
-Configuration module for rupee50k-ai-sector-trader.
+Configuration module for NiftyMind.
 Handles environment variables, logging setup, and strict risk parameters.
 """
 
@@ -115,7 +115,7 @@ def setup_logger(name: str) -> logging.Logger:
     return logger
 
 # Default logger instance for use across modules
-logger = setup_logger("SectorTrader")
+logger = setup_logger("NiftyMind")
 
 if __name__ == "__main__":
     logger.info(f"Configuration loaded. LIVE_MODE = {LIVE_MODE}")
