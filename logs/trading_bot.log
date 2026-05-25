@@ -2286,3 +2286,48 @@
 2026-05-25 16:19:57,270 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for EICHERMOT
 2026-05-25 16:19:57,273 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
 2026-05-25 16:19:57,273 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for WIPRO
+2026-05-25 18:25:06,425 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:25:06,429 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for RELIANCE
+2026-05-25 18:25:06,429 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for HDFCBANK
+2026-05-25 18:25:06,429 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ICICIBANK
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for INFY
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ITC
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for TCS
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BAJFINANCE
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BHARTIARTL
+2026-05-25 18:25:06,430 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for SBIN
+2026-05-25 18:25:07,424 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:25:07,425 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for EICHERMOT
+2026-05-25 18:25:07,425 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:25:07,425 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for WIPRO
+2026-05-25 18:25:43,146 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:25:43,155 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for RELIANCE
+2026-05-25 18:25:43,155 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for HDFCBANK
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ICICIBANK
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for INFY
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ITC
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for TCS
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BAJFINANCE
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BHARTIARTL
+2026-05-25 18:25:43,156 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for SBIN
+2026-05-25 18:25:44,156 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:25:44,158 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for EICHERMOT
+2026-05-25 18:25:44,159 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:25:44,159 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for WIPRO
+2026-05-25 18:26:36,389 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:26:36,391 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for RELIANCE
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for HDFCBANK
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ICICIBANK
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for INFY
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for ITC
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for TCS
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BAJFINANCE
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for BHARTIARTL
+2026-05-25 18:26:36,392 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for SBIN
+2026-05-25 18:26:37,369 - NiftyNinety - WARNING - KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.
+2026-05-25 18:26:37,370 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for EICHERMOT
+2026-05-25 18:26:37,370 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for LT
+2026-05-25 18:26:37,370 - NiftyNinety - WARNING - [SIMULATED API] Returning dummy LTP 1000.0 for WIPRO
