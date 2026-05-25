@@ -1,5 +1,5 @@
 """
-Trading Logic Module for NiftyMind.
+Trading Logic Module for NiftyNinety.
 Orchestrates the full daily routine:
   1. Exit checks on all open positions (stop-loss, profit target, AI thesis re-eval)
   2. BUY decision for today if no conflicting position exists
@@ -35,7 +35,8 @@ from config import (
     TOTAL_CAPITAL,
     MAX_SIMULATED_DAILY_LOSS,
     STOP_LOSS_PCT,
-    logger
+    logger,
+    UserConfig
 )
 
 try:
@@ -46,16 +47,17 @@ except ImportError:
     _TA_AVAILABLE = False
 
 
-class NiftyMind:
+class NiftyNinety:
 
-    def __init__(self):
+    def __init__(self, user_config: UserConfig):
         # Ensure all DB tables exist on first run
         initialize_database()
 
-        self.kite         = KiteClient()
-        self.news_fetcher = NewsFetcher()
-        self.ai           = AIDecisionMaker()
-        self.sell_engine  = SellEngine(kite_client=self.kite, ai_maker=self.ai)
+        self.user_config  = user_config
+        self.kite         = KiteClient(user_config)
+        self.news_fetcher = NewsFetcher(user_config.news_api_key)
+        self.ai           = AIDecisionMaker(user_config)
+        self.sell_engine  = SellEngine(kite_client=self.kite, ai_maker=self.ai, user_config=user_config)
 
     def execute_daily_routine(self) -> Dict[str, Any]:
         logger.info("=== STARTING DAILY TRADING ROUTINE ===")
@@ -67,7 +69,7 @@ class NiftyMind:
         if available_funds < 1000:
             msg = f"Insufficient funds: ₹{available_funds}"
             logger.critical(msg)
-            notify_error("funds_check", msg)
+            notify_error("funds_check", msg, self.user_config)
             return {"status": "error", "message": "Insufficient funds."}
 
         # -------------------------------------------------------
@@ -111,22 +113,23 @@ class NiftyMind:
                     pnl_pct=event.get("pnl_pct", 0),
                     exit_reason=event.get("exit_reason", "UNKNOWN"),
                     trade_id=event.get("trade_id", 0),
+                    user_config=self.user_config
                 )
 
         # -------------------------------------------------------
         # 3. Daily loss circuit breaker
         # -------------------------------------------------------
-        today_pnl = get_today_realised_pnl(today)
+        today_pnl = get_today_realised_pnl(self.user_config.user_id, today)
         if today_pnl <= -MAX_SIMULATED_DAILY_LOSS:
             logger.critical(
                 f"Daily loss circuit breaker triggered! "
                 f"Today's realised P&L: ₹{today_pnl:.2f} exceeds limit ₹{-MAX_SIMULATED_DAILY_LOSS:.2f}. "
                 f"No new trades will be placed today."
             )
-            notify_circuit_breaker(today_pnl, MAX_SIMULATED_DAILY_LOSS)
-            log_daily_decision(decision_date=today, action="HALTED", reason=f"Circuit breaker: daily loss ₹{today_pnl:.2f}")
-            portfolio = get_portfolio_summary()
-            notify_daily_summary(portfolio, "HALTED", f"Circuit breaker triggered at ₹{today_pnl:.2f}")
+            notify_circuit_breaker(today_pnl, MAX_SIMULATED_DAILY_LOSS, self.user_config)
+            log_daily_decision(user_id=self.user_config.user_id, decision_date=today, action="HALTED", reason=f"Circuit breaker: daily loss ₹{today_pnl:.2f}")
+            portfolio = get_portfolio_summary(self.user_config.user_id)
+            notify_daily_summary(portfolio, "HALTED", f"Circuit breaker triggered at ₹{today_pnl:.2f}", self.user_config)
             return {
                 "status":      "halted",
                 "action":      "NO_TRADE",
@@ -150,13 +153,13 @@ class NiftyMind:
         logger.info(f"AI suggests {action} with {len(recs)} recommendations.")
 
         # Persist the macro decision for the dashboard to display
-        log_daily_decision(decision_date=today, action=action, reason=reason)
+        log_daily_decision(user_id=self.user_config.user_id, decision_date=today, action=action, reason=reason)
 
         if action != "BUY" or not recs:
             logger.info("No new trade taken today. Preserving capital.")
-            notify_no_trade(reason)
-            portfolio = get_portfolio_summary()
-            notify_daily_summary(portfolio, action, reason)
+            notify_no_trade(reason, self.user_config)
+            portfolio = get_portfolio_summary(self.user_config.user_id)
+            notify_daily_summary(portfolio, action, reason, self.user_config)
             self._log_equity()
             return {
                 "status":       "success",
@@ -175,7 +178,7 @@ class NiftyMind:
             sector = rec.get("sector", "Unknown")
             rec_reason = rec.get("reason", "No reason provided.")
             
-            if already_holds_stock(stock):
+            if already_holds_stock(self.user_config.user_id, stock):
                 logger.warning(
                     f"Already holding an open position in {stock}. "
                     f"Skipping new BUY to avoid overexposure."
@@ -185,7 +188,7 @@ class NiftyMind:
             ltp = self.kite.get_ltp(stock)
             if ltp <= 0:
                 logger.error(f"Invalid LTP for {stock}. Skipping BUY.")
-                notify_error("ltp_fetch", f"Invalid LTP for {stock}")
+                notify_error("ltp_fetch", f"Invalid LTP for {stock}", self.user_config)
                 continue
 
             risk_per_share       = ltp * STOP_LOSS_PCT
@@ -209,10 +212,11 @@ class NiftyMind:
             if order_result.get("status") != "success":
                 msg = order_result.get("message", "Order failed.")
                 logger.error(f"BUY order failed for {stock}: {msg}")
-                notify_error("buy_order", msg)
+                notify_error("buy_order", msg, self.user_config)
                 continue
 
             trade_id = insert_trade(
+                user_id=self.user_config.user_id,
                 stock=stock,
                 sector=sector,
                 quantity=final_qty,
@@ -230,6 +234,7 @@ class NiftyMind:
                 price=ltp,
                 trade_id=trade_id,
                 reason=rec_reason,
+                user_config=self.user_config
             )
             
             placed_orders.append({
@@ -242,9 +247,9 @@ class NiftyMind:
             # Deduct funds for next iteration
             available_funds -= (final_qty * ltp)
 
-        portfolio = get_portfolio_summary()
+        portfolio = get_portfolio_summary(self.user_config.user_id)
         summary_msg = f"Bought {len(placed_orders)} stocks: " + ", ".join([o["stock"] for o in placed_orders]) if placed_orders else "No buys placed."
-        notify_daily_summary(portfolio, "BUY" if placed_orders else "NO_TRADE", summary_msg)
+        notify_daily_summary(portfolio, "BUY" if placed_orders else "NO_TRADE", summary_msg, self.user_config)
         
         self._log_equity()
 
@@ -262,8 +267,8 @@ class NiftyMind:
         from database import get_open_trades, log_daily_equity, get_portfolio_summary
         from config import TOTAL_CAPITAL, LIVE_MODE
         
-        open_trades = get_open_trades()
-        summary = get_portfolio_summary()
+        open_trades = get_open_trades(self.user_config.user_id)
+        summary = get_portfolio_summary(self.user_config.user_id)
         
         if not LIVE_MODE:
             unrealised_pnl = 0
@@ -282,12 +287,18 @@ class NiftyMind:
                     open_val += int(t["quantity"]) * ltp
             equity = funds + open_val
             
-        log_daily_equity(date.today(), equity)
+        log_daily_equity(self.user_config.user_id, date.today(), equity)
         logger.info(f"Daily equity logged: ₹{equity:.2f}")
 
 
 if __name__ == "__main__":
     import json
-    trader = NiftyMind()
-    result = trader.execute_daily_routine()
-    print(json.dumps(result, indent=2, default=str))
+    from database import get_user_by_email
+    user = get_user_by_email("leninmariajoseph@gmail.com")
+    if user:
+        config = UserConfig(user)
+        trader = NiftyNinety(config)
+        result = trader.execute_daily_routine()
+        print(json.dumps(result, indent=2, default=str))
+    else:
+        print("User Lenin not found. Run migrate_db.py first.")

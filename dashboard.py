@@ -1,5 +1,5 @@
 """
-Streamlit Dashboard for NiftyMind.
+Streamlit Dashboard for Nifty Ninety.
 Dark trading terminal aesthetic — neon accents, glassmorphism cards, live ticker strip.
 
 Run with: streamlit run dashboard.py
@@ -25,9 +25,16 @@ if 'config' in sys.modules:
 
 from config import LIVE_MODE, MAX_RISK_PER_TRADE, TOTAL_CAPITAL
 
+# ── Load logo as base64 for embedding in HTML ─────────────────────────────────
+import base64, pathlib
+_logo_path = pathlib.Path(__file__).parent / "nifty_ninety1.png"
+_logo_b64 = ""
+if _logo_path.exists():
+    _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode("utf-8")
+
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="NiftyMind",
+    page_title="Nifty Ninety",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -452,7 +459,7 @@ st.markdown("""
     /* === PORTFOLIO SCROLL AREA === */
     .portfolio-scroll-area {
         overflow-y: auto;
-        max-height: calc(100vh - 310px);
+        max-height: calc(100vh - 365px);
         scrollbar-width: thin;
         scrollbar-color: rgba(0,212,255,0.3) transparent;
     }
@@ -557,6 +564,39 @@ st.markdown("""
     [data-testid="stFormSubmitButton"] > button:hover {
         box-shadow: 0 0 16px rgba(0,255,136,0.3) !important;
     }
+
+    /* Center the toggle widget in the sidebar */
+    [data-testid="stSidebar"] [data-testid="stCheckbox"],
+    [data-testid="stSidebar"] [data-testid="stToggle"],
+    [data-testid="stSidebar"] .stToggle {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 12px auto !important;
+        width: 100% !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stCheckbox"] > label,
+    [data-testid="stSidebar"] [data-testid="stToggle"] > label,
+    [data-testid="stSidebar"] .stToggle > label {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: auto !important;
+        gap: 8px !important;
+    }
+
+    /* Pinned logout button at the absolute bottom of the sidebar */
+    [data-testid="stSidebarUserContent"] > div:last-child {
+        position: absolute !important;
+        bottom: 20px !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 0 16px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        background-color: var(--bg2) !important;
+        z-index: 1000 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -577,6 +617,102 @@ def try_import_db():
 
 (get_open_trades, get_trade_history,
  get_portfolio_summary, get_news_for_date, get_today_decision, get_equity_history, db_error) = try_import_db()
+
+# ── Auth check ────────────────────────────────────────────────────────────────
+if not db_error:
+    if "user_config" not in st.session_state:
+        # Check for persisted session key in query params to auto-login on refresh
+        if "session_key" in st.query_params:
+            try:
+                import base64
+                encoded_email = st.query_params["session_key"]
+                email = base64.b64decode(encoded_email.encode("utf-8")).decode("utf-8")
+                from database import get_user_by_email
+                from config import UserConfig
+                user_data = get_user_by_email(email)
+                if user_data:
+                    st.session_state.user_config = UserConfig(user_data)
+                    st.rerun()
+            except Exception:
+                pass
+
+        st.markdown("""
+        <style>
+        .login-header {
+            text-align: center;
+            margin-top: 80px;
+            margin-bottom: 30px;
+        }
+        .login-title {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00D4FF, #0066FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+        .login-subtitle {
+            color: #9CA3AF;
+            font-size: 1.1rem;
+        }
+        </style>
+        <div class="login-header">
+            <img src="data:image/png;base64,{_logo_b64}" alt="Nifty Ninety" style="max-width:260px;height:auto;margin-bottom:12px;" />
+            <div class="login-subtitle">Intelligent Algorithmic Trading for NSE</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 1.2, 1])
+        with col2:
+            tab_login, tab_signup = st.tabs(["🔑 Sign In", "✨ Create Account"])
+            
+            with tab_login:
+                with st.form("login_form", border=False):
+                    st.markdown("#### Welcome Back")
+                    email = st.text_input("Email Address", placeholder="e.g. name@example.com")
+                    password = st.text_input("Password", type="password")
+                    submit = st.form_submit_button("Log In", type="primary", use_container_width=True)
+                    
+                    if submit:
+                        from auth import authenticate_user
+                        from database import get_user_by_email
+                        from config import UserConfig
+                        if authenticate_user(email, password):
+                            user_data = get_user_by_email(email)
+                            st.session_state.user_config = UserConfig(user_data)
+                            import base64
+                            st.query_params["session_key"] = base64.b64encode(email.encode("utf-8")).decode("utf-8")
+                            st.rerun()
+                        else:
+                            st.error("Invalid email or password.")
+                            
+            with tab_signup:
+                with st.form("signup_form", border=False):
+                    st.markdown("#### Join Nifty Ninety")
+                    name = st.text_input("Full Name")
+                    email_signup = st.text_input("Email Address")
+                    pass_signup = st.text_input("Password", type="password")
+                    submit_signup = st.form_submit_button("Create Account", type="primary", use_container_width=True)
+                    
+                    if submit_signup:
+                        from auth import register_user
+                        from database import get_user_by_email
+                        from config import UserConfig
+                        try:
+                            register_user(name, email_signup, pass_signup)
+                            user_data = get_user_by_email(email_signup)
+                            st.session_state.user_config = UserConfig(user_data)
+                            import base64
+                            st.query_params["session_key"] = base64.b64encode(email_signup.encode("utf-8")).decode("utf-8")
+                            st.rerun()
+                        except ValueError as e:
+                            st.error(str(e))
+                            
+        st.stop()
+        
+    user_config = st.session_state.user_config
+
 
 
 # ── Live ticker helper ─────────────────────────────────────────────────────────
@@ -621,13 +757,41 @@ def render_ticker_strip():
 
         sep = '<span style="color:rgba(255,255,255,0.15);font-size:10px;">&#124;</span>'
         row = sep.join(chips)
+        # Duplicate for infinite marquee effect
+        row = row + sep + row + sep + row
 
-        html = (
-            '<div style="background:#0D1321;border-bottom:1px solid rgba(255,255,255,0.06);'
-            'padding:9px 20px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;">'
-            + row +
-            '</div>'
-        )
+        html = f"""
+        <style>
+        @keyframes marquee {{
+            0%   {{ transform: translateX(0); }}
+            100% {{ transform: translateX(-33.3333%); }}
+        }}
+        .ticker-wrap {{
+            width: 100%;
+            background: #0D1321;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 9px 0;
+            box-sizing: border-box;
+            display: flex;
+        }}
+        .ticker-move {{
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 12px;
+            animation: marquee 25s linear infinite;
+        }}
+        .ticker-move:hover {{
+            animation-play-state: paused;
+        }}
+        </style>
+        <div class="ticker-wrap">
+            <div class="ticker-move">
+                {row}
+            </div>
+        </div>
+        """
         st.markdown(html, unsafe_allow_html=True)
     except Exception:
         pass  # Ticker is decorative — never crash the dashboard over it
@@ -719,50 +883,48 @@ with st.sidebar:
 
     st.markdown(f"""
     <div class="sidebar-logo-block">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <div style="width:32px;height:32px;background:linear-gradient(135deg,#00D4FF,#0066FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
-            <div>
-                <div class="sidebar-logo-title">NiftyMind</div>
-                <div class="sidebar-logo-sub">NSE Algo Intelligence</div>
-            </div>
+        <div style="display:flex; align-items:center; justify-content: center; gap:10px; width: 100%;">
+            <img src="data:image/png;base64,{_logo_b64}" alt="Nifty Ninety" style="height:76px;width:auto;border-radius:6px;" />
         </div>
-        <span class="header-badge {mode_class}">{mode_label} MODE</span>
+        
     </div>
     """, unsafe_allow_html=True)
 
     # ── Interactive Mode Toggle & Actions at the Top ──
     st.markdown('<div class="nav-section" style="margin-top: 4px;">Trading Control</div>', unsafe_allow_html=True)
-    st.markdown("<div style='padding: 0 8px; display: flex; flex-direction: column; gap: 8px;'>", unsafe_allow_html=True)
     
     import dotenv
-    is_live = st.toggle("🟢 Go LIVE Mode", value=LIVE_MODE, help="Switch between Paper Mode (Simulated) and Live Mode (Zerodha)")
+    col_t1, col_t2, col_t3 = st.columns([1, 8, 1])
+    with col_t2:
+        is_live = st.toggle("🟢 LIVE Mode", value=LIVE_MODE, help="Switch between Paper Mode (Simulated) and Live Mode (Zerodha)")
     if is_live != LIVE_MODE:
         dotenv.set_key(".env", "LIVE_MODE", "True" if is_live else "False")
         st.success(f"Switched to {'LIVE' if is_live else 'PAPER'} mode!")
         st.rerun()
 
-    if st.button("⚡ Execute Daily Analysis", use_container_width=True, type="primary"):
-        with st.spinner("Running AI analysis..."):
-            try:
-                from trading_logic import NiftyMind
-                trader = NiftyMind()
-                result = trader.execute_daily_routine()
-                if result.get("status") == "success":
-                    st.success(f"✅ {result.get('action')}")
-                else:
-                    st.error(result.get("message", "Unknown error"))
-            except Exception as e:
-                st.error(f"Error: {e}")
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("⚡ Execute", use_container_width=True, type="primary", help="Run Daily Analysis"):
+            with st.spinner("Running AI analysis..."):
+                try:
+                    from trading_logic import NiftyNinety
+                    trader = NiftyNinety(user_config)
+                    result = trader.execute_daily_routine()
+                    if result.get("status") == "success":
+                        st.success(f"✅ {result.get('action')}")
+                    else:
+                        st.error(result.get("message", "Unknown error"))
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-    if st.button("↺ Refresh Data", use_container_width=True):
-        st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    with col_btn2:
+        if st.button("↺ Refresh", use_container_width=True, help="Refresh Data"):
+            st.rerun()
 
     st.markdown('<div style="height:1px;background:rgba(255,255,255,0.06);margin:12px 8px;"></div>', unsafe_allow_html=True)
 
     # Portfolio metrics — computed before building the single HTML block
-    summary = get_portfolio_summary() if not db_error else {}
+    summary = get_portfolio_summary(user_config.user_id) if not db_error else {}
     pnl_total = float(summary.get("total_realised_pnl", 0))
     pnl_pct   = (pnl_total / TOTAL_CAPITAL) * 100
     open_pos  = int(summary.get("open_positions", 0))
@@ -791,6 +953,12 @@ with st.sidebar:
         <div class="stat-row"><span class="stat-key">Trailing Stop</span><span class="stat-val" style="color:var(--gold)">-3.0%</span></div>
     </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+    if st.button("🚪 Logout", use_container_width=True):
+        del st.session_state.user_config
+        st.query_params.clear()
+        st.rerun()
 
 
 # ── Main area ──────────────────────────────────────────────────────────────────
@@ -807,9 +975,9 @@ render_sidebar_toggle()
 st.markdown(f"""
 <div class="header-bar">
     <div class="header-logo">
-        <div class="header-logo-icon">⚡</div>
+        <img src="data:image/png;base64,{_logo_b64}" alt="Nifty Ninety" style="height:36px;width:auto;border-radius:6px;" />
         <div>
-            <div class="header-title">NiftyMind</div>
+            <div class="header-title">Nifty Ninety</div>
             <div class="header-subtitle">NSE Delivery · Gemini AI Engine · Algo Intelligence</div>
         </div>
     </div>
@@ -823,7 +991,7 @@ st.markdown(f"""
 st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
 # ── Today's AI Decision Banner ─────────────────────────────────────────────────
-today_decision = get_today_decision(date.today()) if get_today_decision else None
+today_decision = get_today_decision(user_config.user_id, date.today()) if get_today_decision else None
 
 if today_decision:
     action = today_decision.get("action", "UNKNOWN")
@@ -853,8 +1021,8 @@ else:
     """, unsafe_allow_html=True)
 
 # ── KPI row ───────────────────────────────────────────────────────────────────
-summary       = get_portfolio_summary()
-open_trades_data = get_open_trades()
+summary       = get_portfolio_summary(user_config.user_id)
+open_trades_data = get_open_trades(user_config.user_id)
 
 pnl           = float(summary.get("total_realised_pnl", 0))
 pnl_pct_kpi   = (pnl / TOTAL_CAPITAL) * 100
@@ -1063,8 +1231,8 @@ with tab1:
             cur.execute("""
                 SELECT te.*, t.stock FROM trade_evaluations te
                 JOIN trades t ON t.id = te.trade_id
-                WHERE te.eval_date = %s ORDER BY te.created_at DESC;
-            """, (date.today(),))
+                WHERE te.eval_date = %s AND t.user_id = %s ORDER BY te.created_at DESC;
+            """, (date.today(), user_config.user_id))
             evals = cur.fetchall()
         conn.close()
 
@@ -1104,7 +1272,7 @@ with tab1:
 with tab2:
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
-    history = get_trade_history(limit=100)
+    history = get_trade_history(user_config.user_id, limit=100)
     if not history:
         st.markdown("""
         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;">
@@ -1210,7 +1378,7 @@ with tab2:
 with tab3:
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
-    history_a = get_trade_history(limit=200)
+    history_a = get_trade_history(user_config.user_id, limit=200)
     closed_a  = [t for t in history_a if t["status"] == "CLOSED" and t["pnl"] is not None]
 
     if not closed_a:
@@ -1333,7 +1501,7 @@ with tab3:
 
         # ── Historical Equity Curve ──
         st.markdown('<div class="section-title"><span class="section-title-dot"></span> Portfolio Equity Curve</div>', unsafe_allow_html=True)
-        equity_history = get_equity_history(limit=90) if get_equity_history else []
+        equity_history = get_equity_history(user_config.user_id, limit=90) if get_equity_history else []
         if equity_history:
             df_eq = pd.DataFrame(equity_history)
             
@@ -1680,7 +1848,7 @@ with tab5:
                 if _tok and _cid:
                     r = _req.post(
                         f"https://api.telegram.org/bot{_tok}/sendMessage",
-                        json={"chat_id": _cid, "text": "⚡ *NiftyMind* — test message from Settings page ✅", "parse_mode":"Markdown"},
+                        json={"chat_id": _cid, "text": "⚡ *Nifty Ninety* — test message from Settings page ✅", "parse_mode":"Markdown"},
                         timeout=8
                     )
                     if r.json().get("ok"):
@@ -1809,7 +1977,7 @@ st.markdown("""
     gap: 24px;
     flex-wrap: wrap;
 ">
-    <span style="font-size:12px;color:#334155;">⚡ NiftyMind</span>
+    <span style="font-size:12px;color:#334155;">⚡ Nifty Ninety</span>
     <span style="color:#1E293B;">·</span>
     <span style="font-size:12px;color:#334155;">NSE Delivery · Gemini 2.5 Flash</span>
     <span style="color:#1E293B;">·</span>

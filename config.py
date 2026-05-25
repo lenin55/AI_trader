@@ -1,5 +1,5 @@
 """
-Configuration module for NiftyMind.
+Configuration module for NiftyNinety.
 Handles environment variables, logging setup, and strict risk parameters.
 """
 
@@ -26,55 +26,42 @@ MAX_SIMULATED_DAILY_LOSS: float = TOTAL_CAPITAL * 0.01  # Auto-pause threshold (
 
 # Trade Management Thresholds
 STOP_LOSS_PCT: float = float(os.getenv("STOP_LOSS_PCT", "0.05"))
-PROFIT_TARGET_PCT: float = float(os.getenv("PROFIT_TARGET_PCT", "0.15"))
+PROFIT_TARGET_PCT: float = float(os.getenv("PROFIT_TARGET_PCT", "0.08"))
 TRAILING_STOP_PCT: float = float(os.getenv("TRAILING_STOP_PCT", "0.03"))
 
 # Execution parameters
 ORDER_PRODUCT: str = "CNC"  # Delivery only, NO intraday leverage (no MIS/BO/CO)
 ORDER_TYPE: str = "MARKET"
 
-# Universe of highly liquid NSE stocks to consider
-# Ordered loosely by sector: Energy, Banking, IT, FMCG, Telecom, Pharma, Auto, Metals, Realty, Finance, Consumer
+# Universe of highly liquid NSE stocks (Nifty 50 focused) to find daily opportunities
 LIQUID_UNIVERSE: List[str] = [
-    "RELIANCE",     # Energy / Conglomerate
-    "HDFCBANK",     # Banking
-    "ICICIBANK",    # Banking
-    "SBIN",         # Banking (PSU)
-    "KOTAKBANK",    # Banking (Private)
-    "BAJFINANCE",   # NBFC / Consumer Finance
-    "INFY",         # IT
-    "TCS",          # IT
-    "WIPRO",        # IT
-    "ITC",          # FMCG
-    "HINDUNILVR",   # FMCG
-    "BHARTIARTL",   # Telecom
-    "SUNPHARMA",    # Pharma
-    "MARUTI",       # Auto
-    "TATASTEEL",    # Metals
-    "TITAN",        # Consumer / Jewellery
-    "ASIANPAINT",   # Consumer / Paints
-    "DLF"           # Realty
+    "RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "ITC", "TCS", "LT", 
+    "BAJFINANCE", "BHARTIARTL", "SBIN", "HINDUNILVR", "KOTAKBANK", 
+    "AXISBANK", "M&M", "MARUTI", "SUNPHARMA", "ULTRACEMCO", "TITAN", 
+    "NTPC", "TATAMOTORS", "TATASTEEL", "POWERGRID", "ASIANPAINT", 
+    "HCLTECH", "BAJAJFINSV", "WIPRO", "ADANIENT", "ADANIPORTS", 
+    "COALINDIA", "ONGC", "GRASIM", "TECHM", "HINDALCO", "JSWSTEEL", 
+    "CIPLA", "APOLLOHOSP", "TATACONSUM", "DRREDDY", "BAJAJ-AUTO", 
+    "BRITANNIA", "EICHERMOT", "DIVISLAB", "INDUSINDBK", "HEROMOTOCO", 
+    "SHREECEM", "BPCL", "LTIM", "NESTLEIND", "DLF"
 ]
 
-# ==========================================
 # API CREDENTIALS
 # ==========================================
-# Zerodha Kite Connect
-KITE_API_KEY: str = os.getenv("KITE_API_KEY", "")
-KITE_API_SECRET: str = os.getenv("KITE_API_SECRET", "")
-KITE_REQUEST_TOKEN: str = os.getenv("KITE_REQUEST_TOKEN", "")
-
-# NewsData.io
-NEWS_API_KEY: str = os.getenv("NEWS_API_KEY", "")
-
-# LLM Providers (Grok via xAI preferred, fallback to others)
-XAI_API_KEY: str = os.getenv("XAI_API_KEY", "")
-OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-
-# Optional Telegram Alerts
-TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+class UserConfig:
+    def __init__(self, user_dict):
+        self.user_id = user_dict.get('id')
+        self.kite_api_key = user_dict.get('kite_api_key', '')
+        self.kite_api_secret = user_dict.get('kite_api_secret', '')
+        self.kite_request_token = user_dict.get('kite_request_token', '')
+        self.news_api_key = user_dict.get('news_api_key', '')
+        self.google_api_key = user_dict.get('google_api_key', '')
+        self.telegram_bot_token = user_dict.get('telegram_bot_token', '')
+        self.telegram_chat_id = user_dict.get('telegram_chat_id', '')
+        
+        # Keep these as environment variable fallbacks if needed
+        self.xai_api_key = os.getenv("XAI_API_KEY", "")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
 
 # ==========================================
 # LOGGING SETUP
@@ -115,7 +102,7 @@ def setup_logger(name: str) -> logging.Logger:
     return logger
 
 # Default logger instance for use across modules
-logger = setup_logger("NiftyMind")
+logger = setup_logger("NiftyNinety")
 
 if __name__ == "__main__":
     logger.info(f"Configuration loaded. LIVE_MODE = {LIVE_MODE}")

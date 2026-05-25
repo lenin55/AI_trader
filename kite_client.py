@@ -1,5 +1,5 @@
 """
-Kite Client module for NiftyMind.
+Kite Client module for NiftyNinety.
 Provides a secure wrapper around Zerodha's Kite Connect API for market data and orders.
 Now includes place_sell_order() to support the SellEngine.
 """
@@ -9,27 +9,27 @@ from kiteconnect import KiteConnect
 from datetime import datetime
 
 from config import (
-    KITE_API_KEY, KITE_API_SECRET, KITE_REQUEST_TOKEN,
-    LIVE_MODE, ORDER_PRODUCT, ORDER_TYPE, logger
+    LIVE_MODE, ORDER_PRODUCT, ORDER_TYPE, logger, UserConfig
 )
 
 
 class KiteClient:
     """Wrapper for Zerodha Kite Connect API."""
 
-    def __init__(self):
+    def __init__(self, user_config: UserConfig = None):
+        self.user_config = user_config
         self.kite: Optional[KiteConnect] = None
         self.access_token: Optional[str] = None
         self._initialize_client()
 
     def _initialize_client(self):
-        if not KITE_API_KEY or KITE_API_KEY == "your_kite_api_key_here":
+        if not self.user_config or not self.user_config.kite_api_key or self.user_config.kite_api_key == "your_kite_api_key_here":
             logger.warning("KITE_API_KEY is not configured. KiteClient will run in SIMULATED OFFLINE mode.")
             return
         try:
-            self.kite = KiteConnect(api_key=KITE_API_KEY)
-            if KITE_REQUEST_TOKEN and KITE_REQUEST_TOKEN != "your_daily_kite_request_token_here":
-                data = self.kite.generate_session(KITE_REQUEST_TOKEN, api_secret=KITE_API_SECRET)
+            self.kite = KiteConnect(api_key=self.user_config.kite_api_key)
+            if self.user_config.kite_request_token and self.user_config.kite_request_token != "your_daily_kite_request_token_here":
+                data = self.kite.generate_session(self.user_config.kite_request_token, api_secret=self.user_config.kite_api_secret)
                 self.access_token = data["access_token"]
                 self.kite.set_access_token(self.access_token)
                 logger.info("Successfully connected to Kite API and generated access token.")

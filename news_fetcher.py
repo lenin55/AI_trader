@@ -1,5 +1,5 @@
 """
-News Fetcher module for NiftyMind.
+News Fetcher module for NiftyNinety.
 Retrieves the latest business and economic news for India using NewsData.io API.
 Also provides lightweight sector sentiment scoring using VADER.
 """
@@ -7,7 +7,7 @@ Also provides lightweight sector sentiment scoring using VADER.
 import re
 import requests
 from typing import Dict, List
-from config import NEWS_API_KEY, logger
+from config import logger
 
 try:
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -37,7 +37,7 @@ class NewsFetcher:
 
     BASE_URL = "https://newsdata.io/api/1/news"
 
-    def __init__(self, api_key: str = NEWS_API_KEY):
+    def __init__(self, api_key: str = None):
         """Initialize the NewsFetcher with the provided API key."""
         if not api_key:
             logger.warning("NEWS_API_KEY is missing! NewsFetcher might fail unless you provide a valid API key.")

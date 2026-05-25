@@ -3,6 +3,7 @@
     "."
   ],
   "search_path": [
-    "/Users/leninm/Documents/Work/AI_trader/rupee50k-ai-sector-trader/venv/lib/python3.12/site-packages"
+    "/Users/leninm/Documents/Work/AI_trader/stubs",
+    "/Users/leninm/Documents/Work/AI_trader/venv/lib/python3.12/site-packages"
   ]
 }

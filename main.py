@@ -1,5 +1,5 @@
 """
-Main entry point and scheduler for NiftyMind.
+Main entry point and scheduler for NiftyNinety.
 Runs the daily trading routine at 9:00 AM IST on weekdays (excluding NSE holidays).
 """
 
@@ -10,7 +10,7 @@ from datetime import datetime, date
 import sys
 
 from config import logger
-from trading_logic import NiftyMind
+from trading_logic import NiftyNinety
 
 # NSE market holidays — update this list annually.
 # Source: NSE India official holiday calendar.
@@ -66,7 +66,7 @@ def job():
         return
 
     logger.info("Executing Scheduled Job...")
-    trader = NiftyMind()
+    trader = NiftyNinety()
     trader.execute_daily_routine()
     logger.info("Scheduled Job Completed.")
 

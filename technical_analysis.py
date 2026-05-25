@@ -1,5 +1,5 @@
 """
-Technical Analysis module for NiftyMind.
+Technical Analysis module for NiftyNinety.
 Fetches OHLCV data from Yahoo Finance and computes indicators
 that are passed to the AI as structured context alongside news.
 

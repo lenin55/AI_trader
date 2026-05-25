@@ -1,5 +1,5 @@
 """
-AI Decision Module for NiftyMind.
+AI Decision Module for NiftyNinety.
 Uses Google Gemini for:
   1. Daily BUY / NO_TRADE decision based on news.
   2. Daily HOLD / SELL evaluation of existing open positions.
@@ -11,15 +11,12 @@ from enum import Enum
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 
-from config import LIQUID_UNIVERSE, logger
-
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+from config import LIQUID_UNIVERSE, logger, UserConfig
 
 
-def get_gemini_client():
+def get_gemini_client(api_key: str):
     from langchain_google_genai import ChatGoogleGenerativeAI
-    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "your_google_api_key_here":
+    if not api_key or api_key == "your_google_api_key_here":
         raise ValueError(
             "GOOGLE_API_KEY is missing or not set in .env file. "
             "Get your key from Google AI Studio."
@@ -27,7 +24,7 @@ def get_gemini_client():
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=0.1,
-        google_api_key=GOOGLE_API_KEY
+        google_api_key=api_key
     )
 
 
@@ -35,16 +32,16 @@ def get_gemini_client():
 # PROMPT 1 — DAILY BUY / NO_TRADE DECISION
 # ==========================================
 
-BUY_DECISION_PROMPT = """You are a highly conservative quantitative trading AI specialising in the Indian Stock Market (NSE).
-Your task is to read the latest financial news and determine if there is a CLEAR, OVERWHELMING bullish edge for a specific sector today.
+BUY_DECISION_PROMPT = """You are an active daily quantitative swing trading AI specialising in the Indian Stock Market (NSE).
+Your task is to read the latest financial news and identify the best relative opportunities for a specific sector today, even if the market is mixed.
 
-Capital preservation is your #1 priority. If the news is mixed, uncertain, lacks a strong positive catalyst, or mentions global economic fears, your action MUST be NO_TRADE.
+You should aim to find at least one trade every day. However, if the news indicates a massive market crash, severe global economic fear, or extremely negative catalysts, your action MUST be NO_TRADE.
 
-ADDITIONAL RULE — Technical filters (hard gates, non-negotiable):
-- Do NOT recommend a stock with RSI > 70 (overbought — bad entry timing).
-- Do NOT recommend a stock trading more than 5% BELOW its 20-day SMA (downtrend).
-- PREFER stocks with HIGH_VOLUME (volume ratio > 1.5x) as it confirms conviction.
-- If the technically best stock fails these filters, set action=NO_TRADE.
+ADDITIONAL RULE — Technical filters (guidelines for selection):
+- Avoid stocks with RSI > 80 (extreme overbought).
+- Avoid stocks trading drastically below their 50-day SMA.
+- Try to pick stocks that show relative strength and positive momentum based on the technical snapshot.
+- If all available stocks look terrible technically and fundamentally, set action=NO_TRADE, but otherwise, pick the best 1-3 candidates.
 
 Liquid Universe (ONLY stocks you may recommend):
 {liquid_universe}
@@ -57,10 +54,10 @@ News Sentiment Summary (pre-scored):
 
 Instructions:
 1. Analyse each news article for macroeconomic and sector-specific catalysts.
-2. Identify up to 3 sectors with exceptionally strong, unambiguous positive catalysts.
-3. Select up to 3 stocks from the Liquid Universe that best benefit from those sectors.
-4. Apply the technical filters above — reject overbought or downtrending candidates.
-5. If no clear bullish edge exists OR all candidates fail technical filters, set action=NO_TRADE and recommendations=[].
+2. Identify up to 3 sectors that have the strongest relative catalysts today.
+3. Select up to 3 stocks from the Liquid Universe that best benefit from those sectors or show relative strength.
+4. Apply the technical filters above to filter out extremely bad setups.
+5. If the market is severely crashing or all candidates are fundamentally flawed, set action=NO_TRADE and recommendations=[].
 6. Provide step-by-step chain-of-thought reasoning.
 7. Return ONLY valid JSON matching this exact schema — no markdown, no preamble:
 
@@ -84,12 +81,13 @@ Today's News:
 # PROMPT 2 — DAILY HOLD / SELL EVALUATION
 # ==========================================
 
-HOLD_SELL_PROMPT = """You are a conservative portfolio risk manager for an Indian stock trading bot.
+HOLD_SELL_PROMPT = """You are an active swing trading portfolio manager for an Indian stock trading bot.
 You must evaluate whether to HOLD or SELL an existing open position based on today's news and technical data.
 
-Your job is to determine if the original investment thesis still holds.
-If the thesis has reversed, weakened significantly, or if new risks have emerged for this stock/sector, you should recommend SELL.
-If the original thesis is intact and no major negative catalysts have emerged, recommend HOLD.
+Your job is to determine if the trade is still optimal to hold.
+- If the original thesis has reversed, new risks have emerged, or technical momentum has completely stalled, you should recommend SELL.
+- If the stock has made a decent profit but seems to be losing upward momentum (TA weakness), you can recommend SELL to lock in gains early.
+- If the original thesis is intact, momentum is strong, and no negative catalysts have emerged, recommend HOLD.
 
 Open Position Details:
 - Stock: {stock}
@@ -122,9 +120,11 @@ class AIDecisionMaker:
       2. evaluate_position() — should we HOLD or SELL an open trade?
     """
 
-    def __init__(self):
+    def __init__(self, user_config: UserConfig = None):
+        self.user_config = user_config
         try:
-            self.llm = get_gemini_client()
+            api_key = self.user_config.google_api_key if self.user_config else ""
+            self.llm = get_gemini_client(api_key)
             logger.info("Gemini AI client initialised.")
         except ValueError as e:
             logger.critical(str(e))

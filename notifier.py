@@ -1,5 +1,5 @@
 """
-Notifier module for NiftyMind.
+Notifier module for NiftyNinety.
 Sends real-time alerts to Telegram for all significant trading events.
 
 Alert types:
@@ -12,21 +12,21 @@ Alert types:
 
 import requests
 from typing import Optional
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, LIVE_MODE, logger
+from config import LIVE_MODE, logger, UserConfig
 
 
-def _send_telegram(message: str) -> bool:
+def _send_telegram(message: str, user_config: UserConfig = None) -> bool:
     """
     Sends a message to the configured Telegram chat.
     Returns True on success, False on failure.
     Silently skips if credentials are not configured.
     """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    if not user_config or not user_config.telegram_bot_token or not user_config.telegram_chat_id:
         return False  # Telegram not configured — silent skip
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{user_config.telegram_bot_token}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": user_config.telegram_chat_id,
         "text": message,
         "parse_mode": "Markdown",
     }
@@ -43,7 +43,7 @@ def _mode_tag() -> str:
     return "🔴 *LIVE*" if LIVE_MODE else "📋 *PAPER*"
 
 
-def notify_buy(stock: str, sector: str, quantity: int, price: float, trade_id: int, reason: str):
+def notify_buy(stock: str, sector: str, quantity: int, price: float, trade_id: int, reason: str, user_config: UserConfig = None):
     """Alert when a BUY order is placed."""
     msg = (
         f"{_mode_tag()} — *BUY EXECUTED* ✅\n"
@@ -53,7 +53,7 @@ def notify_buy(stock: str, sector: str, quantity: int, price: float, trade_id: i
         f"Trade ID: #{trade_id}\n"
         f"Reason: _{reason[:200]}_"
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)
     logger.info(f"[Notifier] BUY alert sent for {stock}.")
 
 
@@ -65,6 +65,7 @@ def notify_sell(
     pnl_pct: float,
     exit_reason: str,
     trade_id: int,
+    user_config: UserConfig = None
 ):
     """Alert when a position is closed."""
     pnl_emoji = "✅" if pnl >= 0 else "🔴"
@@ -76,11 +77,11 @@ def notify_sell(
         f"Exit Reason: `{exit_reason}`\n"
         f"Trade ID: #{trade_id}"
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)
     logger.info(f"[Notifier] SELL alert sent for {stock} (reason: {exit_reason}).")
 
 
-def notify_circuit_breaker(today_pnl: float, limit: float):
+def notify_circuit_breaker(today_pnl: float, limit: float, user_config: UserConfig = None):
     """Alert when the daily loss circuit breaker halts trading."""
     msg = (
         f"{_mode_tag()} — ⚠️ *CIRCUIT BREAKER TRIGGERED*\n"
@@ -88,20 +89,20 @@ def notify_circuit_breaker(today_pnl: float, limit: float):
         f"Daily limit: ₹{limit:.2f}\n"
         f"No new trades will be placed today."
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)
     logger.warning("[Notifier] Circuit breaker alert sent.")
 
 
-def notify_no_trade(reason: str):
+def notify_no_trade(reason: str, user_config: UserConfig = None):
     """Alert for daily NO_TRADE decision (brief)."""
     msg = (
         f"{_mode_tag()} — *NO TRADE today* 💤\n"
         f"_{reason[:300]}_"
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)
 
 
-def notify_daily_summary(portfolio: dict, action: str, reason: str):
+def notify_daily_summary(portfolio: dict, action: str, reason: str, user_config: UserConfig = None):
     """End-of-routine daily summary."""
     open_pos    = portfolio.get("open_positions", 0)
     closed      = portfolio.get("closed_trades", 0)
@@ -118,15 +119,15 @@ def notify_daily_summary(portfolio: dict, action: str, reason: str):
         f"Total Realised P&L: ₹{total_pnl:+.2f}\n"
         f"Note: _{reason[:200]}_"
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)
     logger.info("[Notifier] Daily summary sent.")
 
 
-def notify_error(context: str, error: str):
+def notify_error(context: str, error: str, user_config: UserConfig = None):
     """Alert on critical errors."""
     msg = (
         f"{_mode_tag()} — 🚨 *ERROR*\n"
         f"Context: `{context}`\n"
         f"Error: `{error[:300]}`"
     )
-    _send_telegram(msg)
+    if user_config: _send_telegram(msg, user_config)

@@ -1,5 +1,5 @@
 """
-AI Backtesting Engine for NiftyMind.
+AI Backtesting Engine for NiftyNinety.
 Runs a historical simulation using yfinance for price data
 and Gemini to mock historical sentiment/decisions if real news is unavailable.
 """

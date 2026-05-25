@@ -1,5 +1,5 @@
 """
-Sell Logic Module for NiftyMind.
+Sell Logic Module for NiftyNinety.
 Evaluates all open positions daily and determines if any should be exited.
 
 Exit conditions (applied in priority order):
@@ -18,7 +18,8 @@ from config import (
     logger,
     STOP_LOSS_PCT,
     PROFIT_TARGET_PCT,
-    TRAILING_STOP_PCT
+    TRAILING_STOP_PCT,
+    UserConfig
 )
 from database import (
     get_open_trades,
@@ -41,14 +42,16 @@ class SellEngine:
     Designed to be called from trading_logic.py after the BUY decision step.
     """
 
-    def __init__(self, kite_client, ai_maker: AIDecisionMaker):
+    def __init__(self, kite_client, ai_maker: AIDecisionMaker, user_config: UserConfig):
         """
         Args:
             kite_client: An initialised KiteClient instance (real or simulated).
             ai_maker:    An initialised AIDecisionMaker instance.
+            user_config: An initialised UserConfig instance.
         """
         self.kite = kite_client
         self.ai   = ai_maker
+        self.user_config = user_config
 
     def run_daily_exit_checks(self, news_text: str) -> List[Dict[str, Any]]:
         """
@@ -60,7 +63,7 @@ class SellEngine:
         Returns:
             List of exit events, each a dict describing what happened.
         """
-        open_trades = get_open_trades()
+        open_trades = get_open_trades(self.user_config.user_id)
 
         if not open_trades:
             logger.info("No open positions to evaluate today.")
